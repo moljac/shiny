@@ -1,11 +1,12 @@
 using System;
 using System.Linq;
+using System.Text;
 using System.Collections.Generic;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
-using Shiny.BluetoothLE.Internals;
 using Android.Bluetooth;
+using Shiny.BluetoothLE.Internals;
 
 
 namespace Shiny.BluetoothLE
@@ -30,11 +31,15 @@ namespace Shiny.BluetoothLE
         {
             this.connSubject = new Subject<ConnectionState>();
             this.Context = new PeripheralContext(centralContext, native);
+            this.WhenStatusChanged().Subscribe(x => this.status = x);
         }
 
 
         public BluetoothDevice Native => this.Context.NativeDevice;
-        public override ConnectionState Status => this.Context.Status;
+
+
+        ConnectionState? status;
+        public override ConnectionState Status => this.status ?? this.Context.Status;
 
 
         public override void Connect(ConnectionConfig? config)
@@ -46,7 +51,6 @@ namespace Shiny.BluetoothLE
 
         public override void CancelConnection()
         {
-            //this.connSubject.OnNext(ConnectionState.Disconnecting);
             this.Context.Close();
             this.connSubject.OnNext(ConnectionState.Disconnected);
         }
@@ -56,29 +60,46 @@ namespace Shiny.BluetoothLE
 
 
         // android does not have a find "1" service - it must discover all services.... seems shit
-        public override IObservable<IGattService?> GetKnownService(string serviceUuid, bool throwIfNotFound = false) => this
-            .GetServices()
-            .Select(x => x.FirstOrDefault(y => y
-                .Uuid
-                .Equals(serviceUuid, StringComparison.InvariantCultureIgnoreCase)
-            ))
-            .Take(1)
-            .Assert(serviceUuid, throwIfNotFound);
+        public override IObservable<IGattService?> GetKnownService(string serviceUuid, bool throwIfNotFound = false)
+        {
+            var uuid = Utils.ToUuidString(serviceUuid);
+
+            return this
+                .GetServices()
+                .Select(x => x.FirstOrDefault(y => y
+                    .Uuid
+                    .Equals(uuid, StringComparison.InvariantCultureIgnoreCase)
+                ))
+                .Take(1)
+                .Assert(serviceUuid, throwIfNotFound);
+        }
 
 
         public override IObservable<string> WhenNameUpdated() => this.Context
             .ManagerContext
             .ListenForMe(BluetoothDevice.ActionNameChanged, this)
-            .Select(x => x.Name);
+            .Select(_ => this.Name);
 
 
-        public override IObservable<ConnectionState> WhenStatusChanged()
-            => this.Context
+        public override IObservable<ConnectionState> WhenStatusChanged() => Observable.Create<ConnectionState>(ob =>
+        {
+            var comp = new CompositeDisposable();
+            ob.OnNext(this.status ?? this.Context.Status);
+
+            this.Context
                 .Callbacks
                 .ConnectionStateChanged
                 .Select(x => x.NewState.ToStatus())
-                .StartWith(this.Status)
-                .Merge(this.connSubject);
+                .Subscribe(ob.OnNext)
+                .DisposedBy(comp);
+
+            this.connSubject
+                .Subscribe(ob.OnNext)
+                .DisposedBy(comp);
+
+            return comp;
+        });
+
 
 
         public override IObservable<IList<IGattService>> GetServices()
@@ -125,8 +146,6 @@ namespace Shiny.BluetoothLE
         }
 
 
-        internal string? PairingRequestPin { get; set; }
-
         public IGattReliableWriteTransaction BeginReliableWriteTransaction() =>
             new GattReliableWriteTransaction(this.Context);
 
@@ -141,18 +160,45 @@ namespace Shiny.BluetoothLE
             }
             else
             {
-                PairingRequestPin = pin;
                 this.Context
                     .ManagerContext
-                    .ListenForMe(ManagerContext.BlePairingFailed, this)
-                    .Subscribe(_ => ob.Respond(false))
-                    .DisposedBy(disp);
+                    .ListenForMe(this)
+                    .Subscribe(intent =>
+                    {
 
-                this.Context
-                    .ManagerContext
-                    .ListenForMe(BluetoothDevice.ActionBondStateChanged, this)
-                    .Where(x => this.Context.NativeDevice.BondState == Bond.Bonded)
-                    .Subscribe(_ => ob.Respond(true))
+                        switch (intent.Action)
+                        {
+                            case BluetoothDevice.ActionAclConnected:
+                                // if we're getting a connection for this device here, the bonding should be good
+                                var success = this.PairingStatus == PairingState.Paired;
+                                ob.Respond(success);
+                                break;
+
+                            case BluetoothDevice.ActionBondStateChanged:
+                                var prev = (Bond)intent.GetIntExtra(BluetoothDevice.ExtraPreviousBondState, (int)Bond.None);
+                                var current = (Bond)intent.GetIntExtra(BluetoothDevice.ExtraBondState, (int)Bond.None);
+
+                                if (prev == Bond.Bonding || current == Bond.Bonded)
+                                {
+                                    // it is done now
+                                    var bond = current == Bond.Bonded;
+                                    ob.Respond(bond);
+                                }
+
+                                break;
+
+                            case BluetoothDevice.ActionPairingRequest:
+                                if (!pin.IsEmpty())
+                                {
+                                    var bytes = Encoding.UTF8.GetBytes(pin);
+                                    if (!this.Native.SetPin(bytes))
+                                    {
+                                        ob.OnError(new ArgumentException("Failed to set PIN"));
+                                    }
+                                }
+                                break;
+                        }
+                    })
                     .DisposedBy(disp);
 
                 if (!this.Context.NativeDevice.CreateBond())

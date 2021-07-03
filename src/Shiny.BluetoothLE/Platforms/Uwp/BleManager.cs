@@ -125,9 +125,9 @@ namespace Shiny.BluetoothLE
                     }
                     return scanResult;
                 }))
+                .Switch()
                 .Where(x => x != null)
-                .Finally(() => this.IsScanning = false)
-                .Switch()!;
+                .Finally(() => this.IsScanning = false);
         }
 
 
@@ -186,8 +186,12 @@ namespace Shiny.BluetoothLE
 
                  var adWatcher = new BluetoothLEAdvertisementWatcher();
                  if (config.ServiceUuids != null)
+                 {
                      foreach (var serviceUuid in config.ServiceUuids)
-                         adWatcher.AdvertisementFilter.Advertisement.ServiceUuids.Add(Guid.Parse(serviceUuid));
+                     {
+                         adWatcher.AdvertisementFilter.Advertisement.ServiceUuids.Add(Utils.ToUuidType(serviceUuid));
+                     }
+                }
 
                  switch (config.ScanType)
                  {

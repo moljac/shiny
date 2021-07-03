@@ -3,21 +3,33 @@
     "services": [
         {
             "name": "Shiny.BluetoothLE.IBleManager",
-            "startup": "services.UseBleClient",
+            "startup": "UseBleClient",
             "bgDelegate": "Shiny.BluetoothLE.IBleDelegate",
             "bgDelegateRequired": false,
             "static": "ShinyBle",
-            "platforms": [
-                {
-                    "platform": "iOS"
-                },
-                {
-                    "platform": "Android"
-                },
-                {
-                    "platform": "UWP"
-                }
-            ]
+            "ios": {
+                "backgroundModes": [ "bluetooth-central" ],
+                "infoPlistValues": [
+                    "NSBluetoothPeripheralUsageDescription",
+                    "NSBluetoothAlwaysUsageDescription"
+                ]
+            },
+            "uwp": {
+                "deviceCapabilities": [ "bluetooth" ]
+            },
+            "android": {
+                "manifestUsesPermissions": [
+                    "android.permission.ACCESS_COARSE_LOCATION",
+                    "android.permission.ACCESS_FINE_LOCATION",
+                    "android.permission.BLUETOOTH_PRIVILEGED",
+                    "android.permission.BLUETOOTH_ADMIN",
+                    "android.permission.BLUETOOTH"
+                ],
+                "manifestUseFeatures": [
+                    "android.hardware.bluetooth",
+                    "android.hardware.bluetooth_le"
+                ]
+            }
         }
     ]
 }

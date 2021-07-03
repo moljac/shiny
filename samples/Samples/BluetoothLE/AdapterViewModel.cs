@@ -45,8 +45,16 @@ namespace Samples.BluetoothLE
                     }
                     else
                     {
-                        var poweredOn = bleManager.Status == AccessState.Available;
-                        await bleManager.TrySetAdapterState(!poweredOn);
+                        if (bleManager.Status == AccessState.Available)
+                        {
+                            await bleManager.TrySetAdapterState(false);
+                            await dialogs.Snackbar("Bluetooth Adapter Disabled");
+                        }
+                        else
+                        {
+                            await bleManager.TrySetAdapterState(true);
+                            await dialogs.Snackbar("Bluetooth Adapter Enabled");
+                        }
                     }
                 }
             );
@@ -71,6 +79,7 @@ namespace Samples.BluetoothLE
                         this.scanSub = bleManager
                             .Scan()
                             .Buffer(TimeSpan.FromSeconds(1))
+                            .Where(x => x?.Any() ?? false)
                             .SubOnMainThread(
                                 results =>
                                 {

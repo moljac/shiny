@@ -37,7 +37,7 @@ namespace Samples
 #if DEBUG
             Xamarin.Forms.Internals.Log.Listeners.Add(new TraceLogListener());
 #endif
-            //containerRegistry.RegisterForNavigation<TestPage>("Test");
+            containerRegistry.RegisterForNavigation<TestPage>("Test");
 
             containerRegistry.RegisterForNavigation<NavigationPage>("Nav");
             containerRegistry.RegisterForNavigation<MainPage>("Main");
@@ -58,7 +58,6 @@ namespace Samples
 
             containerRegistry.RegisterForNavigation<BluetoothLE.AdapterPage>("BleCentral");
             containerRegistry.RegisterForNavigation<BluetoothLE.PeripheralPage>("Peripheral");
-            containerRegistry.RegisterForNavigation<BluetoothLE.PerformancePage>("BlePerformance");
             containerRegistry.RegisterForNavigation<BleHosting.GattServerPage>("BleHosting");
             containerRegistry.RegisterForNavigation<BluetoothLE.ManagedScanPage>("BleManagedScan");
 
@@ -75,6 +74,11 @@ namespace Samples
             containerRegistry.RegisterForNavigation<Jobs.CreatePage>("CreateJob");
 
             containerRegistry.RegisterForNavigation<Push.PushPage>("Push");
+            containerRegistry.RegisterForNavigation<Push.SetupPage, Push.SetupViewModel>();
+            containerRegistry.RegisterForNavigation<Push.EventListPage, Push.EventListViewModel>();
+            containerRegistry.RegisterForNavigation<Push.TagsPage, Push.TagsViewModel>();
+
+
             containerRegistry.RegisterForNavigation<Notifications.MainPage>("Notifications");
             containerRegistry.RegisterForNavigation<Notifications.ChannelListPage>("NotificationChannels");
             containerRegistry.RegisterForNavigation<Notifications.ChannelCreatePage>("NotificationChannelCreate");

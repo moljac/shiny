@@ -9,6 +9,7 @@
     <ItemGroup>
         <Compile Remove="Platforms\**\*.cs" />
         <None Include="Platforms\**\*.cs" />
+        <PackageReference Include="System.Reactive" />
     </ItemGroup>
 
     <ItemGroup Condition=" $(TargetFramework.StartsWith('netstandard')) ">
@@ -18,5 +19,10 @@
     <ItemGroup Condition=" $(TargetFramework.StartsWith('xamarin.ios')) ">
         <ProjectReference Include="..\Shiny.Core\Shiny.Core.csproj" />
         <Compile Include="Platforms\ios\**\*.cs" />
+    </ItemGroup>
+
+    <ItemGroup Condition=" $(TargetFramework.StartsWith('monoandroid')) ">
+        <ProjectReference Include="..\Shiny.Core\Shiny.Core.csproj" />
+        <Compile Include="Platforms\android\**\*.cs" />
     </ItemGroup>
 </Project>

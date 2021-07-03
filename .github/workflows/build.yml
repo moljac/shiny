@@ -9,13 +9,21 @@ on:
         default: 'warning'
   push:
     branches: [ master, main, dev, preview ]
-    paths:
-    - "src/**"
-    - ".github/workflows/**"
   pull_request:
     branches: [ master, main, dev ]
     paths:
     - "src/**"
+
+env:
+  DocsDeployGitHubToken: ${{ secrets.DOCS_GITHUB_TOKEN }}
+  NugetApiKey: ${{secrets.NUGETAPIKEY}}
+  TwitterConsumerKey: ${{secrets.TWITTER_CONSUMER_KEY}}
+  TwitterConsumerSecret: ${{secrets.TWITTER_CONSUMER_SECRET}}
+  TwitterAccessToken: ${{secrets.TWITTER_ACCESS_TOKEN}}
+  TwitterAccessTokenSecret: ${{secrets.TWITTER_ACCESS_TOKEN_SECRET}}
+  DiscordToken: ${{secrets.DISCORD_TOKEN}}
+  DiscordGuildId: 679761126598115336,
+  DiscordChannelId: 803717285986566174
 
 jobs:
   build:
@@ -23,25 +31,12 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    #- name: Boots Update
-    #  run: |
-    #   dotnet tool install --global boots
-    #   boots --preview Mono
-    #   boots --preview Xamarin.iOS
-    #   boots --preview Xamarin.Android
-
-    - name: Add msbuild to PATH
-      uses: microsoft/setup-msbuild@v1.0.2
-    #  with:
-    #    vs-version: '[16.7,16.8)'
     - uses: actions/checkout@v2
-      with:
-        submodules: true
 
     - name: Setup .NET Core
       uses: actions/setup-dotnet@v1
       with:
-        dotnet-version: 3.1.301
+        dotnet-version: 5.0.202
 
     - name: Generate Build Number
       id: buildnumber
@@ -50,17 +45,31 @@ jobs:
         token: ${{secrets.github_token}}
 
     - name: Build
-      run: msbuild Build.sln /t:Clean,Build /restore -m -property:Configuration=Release -property:BUILD_BUILDNUMBER=${{steps.buildnumber.outputs.build_number}} -property:BUILD_SOURCEBRANCHNAME=${{github.ref}}
+      run: dotnet run --project build/ShinyBuild.csproj --BuildNumber=${{steps.buildnumber.outputs.build_number}}
 
- #   - name: Test Core
-  #    run: dotnet test Build.sln
-
-    - name: Post NuGet Artifacts
+    - name: Publish Artifacts
       uses: actions/upload-artifact@v2
       with:
-        name: nuget-artifacts
-        path: '**/*.nupkg'
+        name: nugets
+        path: ${{ github.workspace }}/artifacts
+        retention-days: 5
 
-    - name: Publish to NuGet
-      if: ${{ github.ref == 'refs/heads/preview' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' }}
-      run: dotnet nuget push **\*.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{secrets.NUGETAPIKEY}} --skip-duplicate
+  #iossample:
+  #  runs-on: macos-latest
+
+  #  steps:
+  #  - uses: actions/checkout@v2
+
+  #  # pass cert/pass and provisioning profile
+  #  - name: Build
+  #    run: dotnet run --project build/ShinyBuild.csproj --target=iOSSample
+
+  #androidsample:
+  #  runs-on: macos-latest
+
+  #  steps:
+  #  - uses: actions/checkout@v2
+
+  #  # pass signing key, alias and pass
+  #  - name: Build
+  #    run: dotnet run --project build/ShinyBuild.csproj --target=AndroidSample

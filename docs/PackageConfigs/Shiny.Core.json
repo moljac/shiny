@@ -7,18 +7,22 @@
         {
             "name": "Shiny.Jobs.IJobManager",
             "static": "ShinyJobs",
-            "startup": "services.RegisterJob",
-            "platforms": [
-                {
-                    "platform": "iOS"
-                },
-                {
-                    "platform": "Android"
-                },
-                {
-                    "platform": "UWP"
-                }
-            ]
+            "startup": "RegisterJob",
+            "ios": {
+                "usesJobs": true
+            },
+            "android": {
+                "manifestUsesPermissions": [
+                    "android.permission.ACCESS_NETWORK_STATE",
+                    "android.permission.ACCESS_WIFI_STATE",
+                    "android.permission.BATTERY_STATS",
+                    "android.permission.RECEIVE_BOOT_COMPLETED",
+                    "android.permission.WRITE_EXTERNAL_STORAGE",
+                    "android.permission.READ_EXTERNAL_STORAGE",
+                    "android.permission.INTERNET"
+                ]
+            },
+            "uwp": {}
         }
     ]
 }

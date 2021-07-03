@@ -1,11 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq.Expressions;
 using System.Reactive;
 using System.Reactive.Concurrency;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
+using System.Reactive.Threading.Tasks;
 using System.Threading;
 using System.Threading.Tasks;
 using Shiny.Infrastructure;
@@ -29,6 +29,30 @@ namespace Shiny
     public static partial class Extensions
     {
         /// <summary>
+        /// Adds a timeout to a task - make sure to trap the timeout exception
+        /// </summary>
+        /// <param name="task"></param>
+        /// <param name="milliseconds"></param>
+        /// <param name="cancelToken"></param>
+        /// <returns></returns>
+        public static Task WithTimeout(this Task task, int seconds, CancellationToken cancelToken = default) =>
+            task.WithTimeout(TimeSpan.FromSeconds(seconds), cancelToken);
+
+
+        /// <summary>
+        /// Adds a timeout to a task - make sure to trap the timeout exception
+        /// </summary>
+        /// <param name="task"></param>
+        /// <param name="timeSpan"></param>
+        /// <param name="cancelToken"></param>
+        /// <returns></returns>
+        public static Task WithTimeout(this Task task, TimeSpan timeSpan, CancellationToken cancelToken = default) =>
+            Observable
+                .FromAsync(() => task)
+                .Timeout(timeSpan)
+                .ToTask(cancelToken);
+
+        /// <summary>
         /// Passes the last and current values from the stream
         /// </summary>
         /// <typeparam name="T"></typeparam>
@@ -37,6 +61,29 @@ namespace Shiny
         public static IObservable<Tuple<T, T>> WithPrevious<T>(this IObservable<T> ob)
             => ob.Scan(Tuple.Create(default(T), default(T)), (acc, current) => Tuple.Create(acc.Item2, current));
 
+
+        /// <summary>
+        /// Quick helper method to execute an async select
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <typeparam name="U"></typeparam>
+        /// <param name="observable"></param>
+        /// <param name="task"></param>
+        /// <returns></returns>
+        public static IObservable<U> SelectAsync<T, U>(this IObservable<T> observable, Func<Task<U>> task)
+            => observable.Select(x => Observable.FromAsync(() => task())).Switch();
+
+
+        /// <summary>
+        /// Quick helper method to execute an async select
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <typeparam name="U"></typeparam>
+        /// <param name="observable"></param>
+        /// <param name="task"></param>
+        /// <returns></returns>
+        public static IObservable<U> SelectAsync<T, U>(this IObservable<T> observable, Func<CancellationToken, Task<U>> task)
+            => observable.Select(x => Observable.FromAsync(ct => task(ct))).Switch();
 
 
         /// <summary>
@@ -102,34 +149,6 @@ namespace Shiny
         }
 
 
-        /// <summary>
-        /// This will buffer observable pings and timestamp them until the predicate check does not pass
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="thisObs"></param>
-        /// <param name="predicate"></param>
-        /// <returns></returns>
-        public static IObservable<List<Timestamped<T>>> BufferWhile<T>(this IObservable<T> thisObs, Func<T, bool> predicate)
-            => Observable.Create<List<Timestamped<T>>>(ob =>
-            {
-                var list = new List<Timestamped<T>>();
-                return thisObs
-                    .Timestamp()
-                    .Subscribe(x =>
-                    {
-                        if (predicate(x.Value))
-                        {
-                            list.Add(x);
-                        }
-                        else if (list != null)
-                        {
-                            ob.OnNext(list);
-                            list.Clear();
-                        }
-                    });
-            });
-
-
         public static IObservable<TRet> WhenAnyProperty<TSender, TRet>(this TSender This, Expression<Func<TSender, TRet>> expression) where TSender : INotifyPropertyChanged
         {
             var p = This.GetPropertyInfo(expression);
@@ -150,24 +169,6 @@ namespace Shiny
                 .FromEventPattern<PropertyChangedEventArgs>(This, nameof(INotifyPropertyChanged.PropertyChanged))
                 .Select(x => new ItemChanged<TSender, string>(This, x.EventArgs.PropertyName));
 
-
-        public static IDisposable SubscribeVoid<T>(this IObservable<T> observable, Action onNext)
-            => observable.Subscribe(_ => onNext());
-
-
-        public static IDisposable SubscribeVoid<T>(this IObservable<T> observable, Action onNext, Action<Exception> onError)
-            => observable.Subscribe(
-                _ => onNext(),
-                onError
-            );
-
-
-        public static IDisposable SubscribeVoid<T>(this IObservable<T> observable, Action onNext, Action<Exception> onError, Action onComplete)
-            => observable.Subscribe(
-                _ => onNext(),
-                onError,
-                onComplete
-            );
 
 
         public static IDisposable SubscribeAsync<T>(this IObservable<T> observable, Func<T, Task> onNextAsync)

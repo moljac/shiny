@@ -3,19 +3,16 @@
     "services": [
         {
             "name": "Shiny.BluetoothLE.IBleHostingManager",
-            "startup": "services.UseBleHosting",
+            "startup": "UseBleHosting",
             "static": "ShinyBleHosting",
-            "platforms": [
-                {
-                    "platform": "iOS"
-                },
-                {
-                    "platform": "Android"
-                },
-                {
-                    "platform": "UWP"
-                }
-            ]
+            "ios": {
+                "backgroundModes": [ "bluetooth-peripheral" ],
+                "infoPlistValues": [
+                    "NSBluetoothPeripheralUsageDescription",
+                    "NSBluetoothAlwaysUsageDescription"
+                ]
+            },
+            "android": {}
         }
     ]
 }

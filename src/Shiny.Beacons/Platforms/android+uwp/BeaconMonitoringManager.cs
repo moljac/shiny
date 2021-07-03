@@ -4,7 +4,9 @@ using System.Threading.Tasks;
 using System.Reactive.Threading.Tasks;
 using Shiny.BluetoothLE;
 using Shiny.Infrastructure;
-
+#if MONOANDROID
+using Shiny.Locations;
+#endif
 
 namespace Shiny.Beacons
 {
@@ -33,7 +35,6 @@ namespace Shiny.Beacons
             this.messageBus = messageBus;
             this.repository = repository;
         }
-
 
 
         public async void Start()
@@ -80,6 +81,7 @@ namespace Shiny.Beacons
         {
             var access = await this.bleManager.RequestAccess().ToTask();
 #if MONOANDROID
+            await this.context.RequestLocationAccess(true, true, true, false);
             if (access == AccessState.Available && this.context.IsMinApiLevel(26))
                 access = await this.context.RequestAccess(Android.Manifest.Permission.ForegroundService).ToTask();
 #endif

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using Newtonsoft.Json;
 
 
@@ -11,11 +12,18 @@ namespace Docs.Shortcodes
         const string PackageDirectory = "./PackageConfigs";
 
 
-        public static string ToNugetShield(string packageName, bool usePackageLabel)
+        public static StringBuilder AppendXmlCode(this StringBuilder sb, string header) => sb
+            .AppendLine("### " + header)
+            .AppendLine()
+            .AppendLine("```xml")
+            .AppendLine("<?xml version=\"1.0\" encoding=\"utf-8\" ?>");
+
+
+        public static string ToNugetShield(string packageName, string? label = null)
         {
             var imageUrl = $"https://img.shields.io/nuget/v/{packageName}.svg?style=for-the-badge";
-            if (usePackageLabel)
-                imageUrl += $"&label={packageName}";
+            if (label != null)
+                imageUrl += $"&label={label}";
 
             var hrefUrl = $"https://www.nuget.org/packages/{packageName}/";
 

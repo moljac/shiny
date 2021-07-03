@@ -10,33 +10,32 @@
         <Product>$(AssemblyName) ($(TargetFramework))</Product>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageProjectUrl>https://shinylib.net</PackageProjectUrl>
+        <ShinyVersion Condition=" '$(ShinyVersion)' == '' ">2.0.0</ShinyVersion>
+        <PackageVersion>$(ShinyVersion)</PackageVersion>
         <PackageIcon>icon.png</PackageIcon>
-        <PackageReleaseNotes>https://github.com/shinyorg/shiny/blob/master/ChangeLog.md</PackageReleaseNotes>
+        <PackageReleaseNotes>https://shinylib.net/release-notes/</PackageReleaseNotes>
         <PackageTags>xamarin uwp ios android tizen tvos watchos ble bluetooth bluetoothle push notifications sensors geofences gps location backgroundjobs settings environment speech sensors</PackageTags>
         <RepositoryUrl>https://github.com/shinyorg/shiny</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
         <DebugType Condition=" $(Configuration) == 'Release' ">embedded</DebugType>
         <DebugType Condition=" $(Configuration) == 'Debug' ">full</DebugType>
-        <ShinyVersion Condition=" '$(ShinyVersion)' == '' ">2.0.0</ShinyVersion>
-        <VersionPrefix>$(ShinyVersion)</VersionPrefix>
-        <VersionPrefix Condition=" $(BUILD_BUILDNUMBER) != '' ">$(VersionPrefix).$(BUILD_BUILDNUMBER)</VersionPrefix>
-        <VersionSuffix Condition=" $(BUILD_SOURCEBRANCHNAME) != 'refs/heads/master' AND $(BUILD_SOURCEBRANCHNAME) != 'refs/heads/main' ">preview</VersionSuffix>
         <DefineConstants Condition=" $(TargetFramework.StartsWith('monoandroid')) ">$(DefineConstants);__ANDROID__</DefineConstants>
         <DefineConstants Condition=" $(TargetFramework.StartsWith('tizen')) ">$(DefineConstants);__TIZEN__</DefineConstants>
         <ExtrasUwpMetaPackageVersion>6.2.12</ExtrasUwpMetaPackageVersion>
         <UwpTargetFramework>uap10.0.17763</UwpTargetFramework>
         <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
+        <PackageReadmeFile>readme.md</PackageReadmeFile>
     </PropertyGroup>
 
     <PropertyGroup Condition=" $(TargetFramework.StartsWith('netcore')) OR $(TargetFramework.StartsWith('net4')) ">
         <UseWPF>true</UseWPF>
     </PropertyGroup>
 
-    <PropertyGroup Condition="'$(TF_BUILD)' == 'true' OR '$(GITHUB_ACTIONS)' == 'true'">
+    <PropertyGroup Condition="'$(CI)' == 'true'">
         <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
     </PropertyGroup>
 
-    <PropertyGroup Condition=" '$(Configuration)' == 'Release' AND '$(OS)' == 'Windows_NT' ">
+    <PropertyGroup Condition=" '$(Configuration)' == 'Release' AND '$(OS)' == 'WINDOWS_NT' ">
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <IncludeSymbols>True</IncludeSymbols>
@@ -45,16 +44,11 @@
         <EmbedUntrackedSources>True</EmbedUntrackedSources>
     </PropertyGroup>
 
-    <!--<PropertyGroup Condition=" $(TargetFramework.Contains('android')) ">
-        <MonoAndroidResourcePrefix></MonoAndroidResourcePrefix>
-        <AndroidResgenFile></AndroidResgenFile>
-        <AndroidResgenClass></AndroidResgenClass>
-    </PropertyGroup>-->
-
     <ItemGroup>
         <None Include="$(MSBuildThisFileDirectory)nuget.png" Pack="true" PackagePath="icon.png" />
+        <None Include="$(MSBuildThisFileDirectory)nuget.txt" Pack="true" PackagePath="readme.txt" />
+        <None Include="..\..\readme.md" Pack="true" PackagePath="\" />
         <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
-        <!--<Compile Include="$(MSBuildThisFileDirectory)CSharp9Hack.cs" />-->
     </ItemGroup>
 
     <ItemGroup Condition=" $(TargetFramework.StartsWith('netcore')) OR $(TargetFramework.StartsWith('net4')) ">

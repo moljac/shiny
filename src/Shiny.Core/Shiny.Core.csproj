@@ -5,11 +5,9 @@
         <Description>The Shiny Core containing all of the major functionality like hosting, logging, connectivity, environment, IO, power, settings, and jobs as well as many other utilities</Description>
         <TargetFrameworks>netstandard2.0;xamarin.ios10;monoandroid10.0</TargetFrameworks>
         <TargetFrameworks Condition=" $(OS) == 'WINDOWS_NT' ">$(UwpTargetFramework);$(TargetFrameworks)</TargetFrameworks>
-        <TargetsForTfmSpecificBuildOutput Condition=" $(TargetFramework.StartsWith('uap')) ">$(TargetsForTfmSpecificBuildOutput);CopyProjectReferencesToPackage</TargetsForTfmSpecificBuildOutput>
     </PropertyGroup>
 
     <ItemGroup>
-        <None Include="readme.txt" pack="true" PackagePath="." />
         <None Include="**\Platforms\**\*.cs" />
         <Compile Remove="**\Platforms\**\*.cs" />
         <PackageReference Include="Newtonsoft.Json" />
@@ -41,10 +39,6 @@
     </ItemGroup>
 
     <ItemGroup Condition=" $(TargetFramework.StartsWith('uap')) ">
-        <ProjectReference Include="..\Shiny.Support.Uwp\Shiny.Support.Uwp.csproj">
-            <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
-            <IncludeAssets>Shiny.Support.Uwp.*</IncludeAssets>
-        </ProjectReference>
         <Compile Include="**\Platforms\Uwp\**\*.cs" />
         <Compile Include="**\Platforms\Shared\**\*.cs" />
     </ItemGroup>
@@ -74,9 +68,4 @@
         <Reference Include="netstandard" />
     </ItemGroup>
 
-    <Target DependsOnTargets="ResolveReferences" Name="CopyProjectReferencesToPackage">
-        <ItemGroup>
-            <BuildOutputInPackage Include="@(ReferenceCopyLocalPaths-&gt;WithMetadataValue('ReferenceSourceTarget', 'ProjectReference'))" />
-        </ItemGroup>
-    </Target>
 </Project>

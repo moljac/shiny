@@ -18,26 +18,32 @@ namespace Samples
     {
         readonly IBleManager bleManager;
         IPeripheral peripheral;
-        CompositeDisposable disp;
+        CancellationTokenSource? cancelSrc;
+        CompositeDisposable? disp;
 
 
         public TestViewModel(IBleManager bleManager)
         {
             this.bleManager = bleManager;
 
-            this.Start = ReactiveCommand.CreateFromTask(
-                async ct =>
+            this.Start = ReactiveCommand.CreateFromTask<string>(
+                async arg =>
                 {
-                    try
+                    this.IsBusy = true;
+                    this.disp = new CompositeDisposable();
+                    this.cancelSrc = new CancellationTokenSource();
+                    this.Logs = String.Empty;
+
+                    switch (arg)
                     {
-                        this.IsBusy = true;
-                        await this.GeneralTest(ct);
+                        case "obd":
+                            await this.ObdTest();
+                            break;
+
+                        case "pairing":
+                            await this.PairingTest();
+                            break;
                     }
-                    finally
-                    {
-                        this.IsBusy = false;
-                    }
-                    //await this.ObdTest();
                 },
                 this.WhenAny(x => x.IsBusy, x => !x.GetValue())
             );
@@ -45,6 +51,7 @@ namespace Samples
                 () =>
                 {
                     this.disp?.Dispose();
+                    this.cancelSrc?.Cancel();
                     this.peripheral?.CancelConnection();
                     this.Append("Stopped");
                     this.IsBusy = false;
@@ -61,92 +68,103 @@ namespace Samples
         void Append(string txt) => this.Logs = $"{txt}{Environment.NewLine}{this.Logs}";
 
 
+        //public override void OnAppearing()
+        //{
+        //    this.bleManager
+        //        .Scan()
+        //        .Subscribe(x =>
+        //        {
 
-        const string SERVICE_UUID = "79AC5233-A36F-43B9-988F-5C651B12B560";
-        const string C1_UUID = "79AC5233-A36F-43B9-988F-5C651B12B561";
-        const string C2_UUID = "79AC5233-A36F-43B9-988F-5C651B12B562";
+        //        })
+        //        .DisposeWith(this.DeactivateWith);
+        //}
 
-        async Task GeneralTest(CancellationToken ct)
+
+        //public override void OnDisappearing()
+        //{
+        //    Console.WriteLine("ONDISAPPEARING CALLED");
+        //}
+
+        async Task PairingTest()
         {
-            this.peripheral = await this.bleManager
-                .ScanForUniquePeripherals(new ScanConfig { ServiceUuids = { SERVICE_UUID } })
+            this.Append("Scanning..");
+            this.peripheral = await bleManager
+                .ScanForUniquePeripherals(new ScanConfig { ServiceUuids = { "FFF0" } })
                 .Take(1)
-                .ToTask();
-            this.Append("PERIPHERAL FOUND");
+                .ToTask(this.cancelSrc.Token);
 
-            await this.peripheral.WithConnectIf(); // this is not connecting from droid client to ios hosting - gattcallback is not firing
-            this.Append("CONNECTED");
+            this.Append("Device Found");
+            //await this.peripheral.WithConnectIf().ToTask(this.cancelSrc.Token);
+            this.Append("Device Connected - trying to pair");
 
-            var chs = await this.peripheral.GetAllCharacteristics();
-
-            // ios was not finding the specific service uuid on droid hosting
-            await this.peripheral.ReadCharacteristic(SERVICE_UUID, C1_UUID)
-                        .Do(data =>
-                        {
-                            var value = BitConverter.ToInt32(data, 0);
-                            this.Append("C1: " + value);
-                        })
-                        .Select(_ => Unit.Default);
+            var result = await this.peripheral.TryPairingRequest().ToTask(this.cancelSrc.Token);
+            if (result == null)
+            {
+                this.Append("Pairing Not Supported");
+            }
+            else
+            {
+                this.Append("Pairing Result: " + result.Value);
+            }
         }
 
 
         async Task ObdTest()
         {
-            //this.disp = new CompositeDisposable();
+            this.Append("Scanning...");
 
-            //this.Logs = String.Empty;
-            //this.IsBusy = true;
-            //this.Append("Scanning...");
+            this.peripheral = await bleManager
+                .ScanForUniquePeripherals(new ScanConfig { ServiceUuids = { "FFF0" } })
+                //.ScanUntilPeripheralFound("VEEPEAK")
+                .Take(1)
+                .ToTask();
 
-            //this.peripheral = await bleManager
-            //    .ScanForUniquePeripherals(new ScanConfig { ServiceUuids = { "FFF0" } })
-            //    .Take(1)
-            //    .ToTask();
-
-            //this.Append("Device Found");
-            //await this.peripheral.WithConnectIf();
-            //this.Append("Device Connected");
-            //var rx = await this.peripheral.GetKnownCharacteristic("FFF0", "FFF1").ToTask();
-            //if (rx == null)
-            //{
-            //    this.Append("RX Not Found");
-            //    return;
-            //}
-            //this.Append("RX Found");
+            this.Append("Device Found");
+            await this.peripheral.WithConnectIf();
+            this.Append("Device Connected");
+            var rx = await this.peripheral.GetKnownCharacteristic("FFF0", "FFF1").ToTask();
+            if (rx == null)
+            {
+                this.Append("RX Not Found");
+                return;
+            }
+            this.Append("RX Found");
 
 
-            //var tx = await this.peripheral.GetKnownCharacteristic("FFF0", "FFF2").ToTask();
-            //if (tx == null)
-            //{
-            //    this.Append("TX NOT Found");
-            //    return;
-            //}
-            //this.Append("TX Found");
+            var tx = await this.peripheral.GetKnownCharacteristic("FFF0", "FFF2").ToTask();
+            if (tx == null)
+            {
+                this.Append("TX NOT Found");
+                return;
+            }
+            this.Append("TX Found");
 
-            //this.disp.Add(rx
-            //    .Notify()
-            //    .Select(x => x.Data)
-            //    .SubOnMainThread(
-            //        data => this.Append($"[RECEIVE] {Encoding.ASCII.GetString(data)}"),
-            //        ex => this.Append($"RX Error {ex}")
-            //    )
-            //);
+            this.disp.Add(rx
+                .Notify()
+                .Select(x => x.Data)
+                .SubOnMainThread(
+                    data => this.Append($"[RECEIVE] {Encoding.ASCII.GetString(data)}"),
+                    ex => this.Append($"RX Error {ex}")
+                )
+            );
 
-            //this.Append("Initializing");
-            //await tx.Write(Encoding.ASCII.GetBytes("ATZ")).ToTask();
-            //await tx.Write(Encoding.ASCII.GetBytes("AT RV")).ToTask();
-            //await tx.Write(Encoding.ASCII.GetBytes("ATI")).ToTask();
-            //await tx.Write(Encoding.ASCII.GetBytes("AT PC")).ToTask();
-            //await tx.Write(Encoding.ASCII.GetBytes("AT D")).ToTask();
-            //await tx.Write(Encoding.ASCII.GetBytes("AT E0")).ToTask();
-            //await tx.Write(Encoding.ASCII.GetBytes("AT SP 5")).ToTask();
-            //await tx.Write(Encoding.ASCII.GetBytes("AT ST 80")).ToTask();
-            //await tx.Write(Encoding.ASCII.GetBytes("AT SH 81 10 F0")).ToTask();
-            //await tx.Write(Encoding.ASCII.GetBytes("21 0B 01")).ToTask();
-            //this.Append("Initialized");
+            this.Append("Initializing");
+            await tx.Write(Encoding.ASCII.GetBytes("ATZ")).ToTask();
+            await tx.Write(Encoding.ASCII.GetBytes("AT RV")).ToTask();
+            await tx.Write(Encoding.ASCII.GetBytes("ATI")).ToTask();
+            await tx.Write(Encoding.ASCII.GetBytes("AT PC")).ToTask();
+            await tx.Write(Encoding.ASCII.GetBytes("AT D")).ToTask();
+            await tx.Write(Encoding.ASCII.GetBytes("AT E0")).ToTask();
+            await tx.Write(Encoding.ASCII.GetBytes("AT SP 5")).ToTask();
+            await tx.Write(Encoding.ASCII.GetBytes("AT ST 80")).ToTask();
+            await tx.Write(Encoding.ASCII.GetBytes("AT SH 81 10 F0")).ToTask();
+            await tx.Write(Encoding.ASCII.GetBytes("21 0B 01")).ToTask();
+            this.Append("Initialized");
 
-            //var bytes = Encoding.ASCII.GetBytes("010D\r");
-
+            var bytes = Encoding.ASCII.GetBytes("010D\r");
+            await tx.WriteAsync(bytes, false, this.cancelSrc.Token);
+            await tx.WriteAsync(bytes, false, this.cancelSrc.Token);
+            await tx.WriteAsync(bytes, false, this.cancelSrc.Token);
             //this.disp.Add(Observable
             //    .Interval(TimeSpan.FromSeconds(3))
             //    .Select(_ => tx.Write(bytes))
@@ -155,19 +173,18 @@ namespace Samples
             //        x => this.Append("WRITE"),
             //        ex => this.Append("WRITE ERROR")
             //    )
-            //    //.Subscribe(async _ =>
-            //    //{
-            //    //    try
-            //    //    {
-            //    //        await tx.Write(bytes).ToTask();
-            //    //        this.Append("WRITE");
-            //    //    }
-            //    //    catch (Exception ex)
-            //    //    {
-            //    //        this.Append("ERROR: " + ex);
-            //    //    }
-            //    //})
-            //);
+            //.Subscribe(async _ =>
+            //{
+            //    try
+            //    {
+            //        await tx.Write(bytes).ToTask();
+            //        this.Append("WRITE");
+            //    }
+            //    catch (Exception ex)
+            //    {
+            //        this.Append("ERROR: " + ex);
+            //    }
+            //})
         }
     }
 }

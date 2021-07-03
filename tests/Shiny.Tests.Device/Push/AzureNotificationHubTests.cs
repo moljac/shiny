@@ -19,15 +19,18 @@ namespace Shiny.Tests.Push
     {
         private const string FcmSampleNotificationContent = "{\"data\":{\"message\":\"Notification Hub test notification from SDK sample\"}}";
         //private const string FcmSampleSilentNotificationContent = "{ \"message\":{\"data\":{ \"Nick\": \"Mario\", \"body\": \"great match!\", \"Room\": \"PortugalVSDenmark\" } }}";
-        private const string AppleSampleNotificationContent = "{\"aps\":{\"alert\":\"Notification Hub test notification from SDK sample\"}}";
+        private const string AppleSampleNotificationContent = "{\"aps\":{\"alert\":\"Notification Hub test notification from SDK sample\",\"content-available\":1}}";
         //private const string AppleSampleSilentNotificationContent = "{\"aps\":{\"content-available\":1}, \"foo\": 2 }";
         private const string WnsSampleNotification = "<?xml version=\"1.0\" encoding=\"utf-8\"?><toast><visual><binding template=\"ToastText01\"><text id=\"1\">Notification Hub test notification from SDK sample</text></binding></visual></toast>";
         readonly IPushTagSupport pushManager;
         readonly NotificationHubClient hubClient;
+        readonly ITestOutputHelper output;
 
 
         public AzureNotificationHubTests(ITestOutputHelper output)
         {
+            this.output = output;
+
             ShinyHost.Init(TestStartup.CurrentPlatform, new ActionStartup
             {
                 BuildServices = x => x.UsePushAzureNotificationHubs<TestPushDelegate>(
@@ -148,9 +151,15 @@ namespace Shiny.Tests.Push
 
         async Task DoSend()
         {
-            await this.pushManager.AddTag(this.pushManager.CurrentRegistrationToken);
-            var tag = this.pushManager.CurrentRegistrationToken;
+            //var tag = this.pushManager.CurrentRegistrationToken;
+
+            var tag = "UnitTest";
+            await this.pushManager.AddTag(tag);
             await Task.Delay(1000); // let azure breath
+
+            //var regs = await this.hubClient.GetRegistrationsByTagAsync(tag, 5);
+            //regs.Count().Should().Be(1, "Invalid Registration Count");
+            //this.output.WriteLine("Using push token " + tag);
 
             var p = TestStartup.CurrentPlatform;
 
@@ -168,7 +177,7 @@ namespace Shiny.Tests.Push
             }
             else
             {
-                throw new ArgumentException("Invalid Platform - " + p.CurrentPlatform());
+                throw new ArgumentException("Invalid Platform - " + p.Name);
             }
         }
     }

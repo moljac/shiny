@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
+using Microsoft.Extensions.Logging;
 using Android.Runtime;
 using Android.Gms.Extensions;
 using Firebase.Iid;
@@ -22,11 +23,15 @@ namespace Shiny.Push
     {
         readonly Subject<PushNotification> receiveSubj;
         readonly INotificationManager notificationManager;
+        readonly ILogger logger;
 
 
-        public PushManager(ShinyCoreServices services, INotificationManager notificationManager) : base(services)
+        public PushManager(ShinyCoreServices services,
+                           INotificationManager notificationManager,
+                           ILogger<IPushManager> logger) : base(services)
         {
             this.notificationManager = notificationManager;
+            this.logger = logger;
             this.receiveSubj = new Subject<PushNotification>();
         }
 
@@ -44,16 +49,26 @@ namespace Shiny.Push
                     this.CurrentRegistrationToken = token;
                     this.CurrentRegistrationTokenDate = DateTime.UtcNow;
 
-                    await this.Services.Services.RunDelegates<IPushDelegate>(
-                        x => x.OnTokenChanged(token)
-                    );
+                    await this.Services
+                        .Services
+                        .RunDelegates<IPushDelegate>(
+                            x => x.OnTokenChanged(token)
+                        )
+                        .ConfigureAwait(false);
                 }
             };
 
             ShinyFirebaseService.MessageReceived = async message =>
             {
-                var pr = this.FromNative(message);
-                await this.OnPushReceived(pr);
+                try
+                {
+                    var pr = this.FromNative(message);
+                    await this.OnPushReceived(pr).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.LogError(ex, "Error processing received message");
+                }
             };
         }
 
@@ -84,7 +99,7 @@ namespace Shiny.Push
             this.ClearRegistration();
 
             FirebaseMessaging.Instance.AutoInitEnabled = false;
-            await Task.Run(() => FirebaseInstanceId.Instance.DeleteInstanceId());
+            await Task.Run(() => FirebaseInstanceId.Instance.DeleteInstanceId()).ConfigureAwait(false);
         }
 
 

@@ -68,7 +68,7 @@ namespace Shiny.Notifications
                     //x.Activated += null;
                     //x.Dismissed += null;
                     x.Tag = notification.Id.ToString();
-                    x.Group = "";
+                    //x.Group = "";
                     //x.Priority
                 }));
             }
@@ -132,6 +132,7 @@ namespace Shiny.Notifications
                         case ChannelActionType.OpenApp:
                             // foreground activation
                             builder.AddButton(new ToastButton()
+                                .SetProtocolActivation(new Uri("empty"))
                                 .SetContent(action.Title)
                                 .AddArgument("action", action.Identifier)
                             );
@@ -147,8 +148,17 @@ namespace Shiny.Notifications
                             break;
 
                         case ChannelActionType.TextReply:
-                            builder.AddInputTextBox(action.Identifier, null, action.Title);
-                            // TODO: need  button?
+                            builder
+                                .AddArgument(action.Identifier)
+                                .AddInputTextBox("Text", null, action.Title)
+                                .AddButton(new ToastButton()
+                                    .SetContent("OK")
+                                    .SetBackgroundActivation()
+                                )
+                                .AddButton(new ToastButton()
+                                    .SetContent("Cancel")
+                                    .SetDismissActivation()
+                                );
                             break;
                     }
                 }

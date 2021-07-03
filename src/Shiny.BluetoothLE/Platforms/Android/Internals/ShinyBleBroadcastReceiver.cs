@@ -1,8 +1,8 @@
 ﻿using System;
+using System.Reactive.Subjects;
 using Android.App;
 using Android.Bluetooth;
 using Android.Content;
-using Microsoft.Extensions.Logging;
 
 
 namespace Shiny.BluetoothLE.Internals
@@ -15,24 +15,19 @@ namespace Shiny.BluetoothLE.Internals
     [IntentFilter(new[] {
         BluetoothDevice.ActionNameChanged,
         BluetoothDevice.ActionBondStateChanged,
-        BluetoothDevice.ActionPairingRequest
+        BluetoothDevice.ActionPairingRequest,
+        BluetoothDevice.ActionAclConnected
     })]
     public class ShinyBleBroadcastReceiver : BroadcastReceiver
     {
-        // TODO: may need to be async if broadcast receiver has a quick stop
-        public override void OnReceive(Context context, Intent intent)
+        static readonly Subject<Intent> bleSubj = new Subject<Intent>();
+        public static IObservable<Intent> WhenBleEvent() => bleSubj;
+
+
+        public override void OnReceive(Context? context, Intent? intent)
         {
-            try
-            {
-                ShinyHost.Resolve<ManagerContext>().DeviceEvent(intent);
-            }
-            catch (Exception ex)
-            {
-                ShinyHost
-                    .LoggerFactory
-                    .CreateLogger<ILogger<ShinyBleBroadcastReceiver>>()
-                    .LogError(ex, "Error executing in broadcast receiver");
-            }
+            if (intent != null)
+                bleSubj.OnNext(intent);
         }
     }
 }
